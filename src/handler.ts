@@ -139,7 +139,7 @@ export class Handler {
    * @throws {TimeoutError} If the request times out.
    * @throws {AbortError} If the request is aborted or any other error occurs.
    */
-  async bare(): Promise<void> {
+  async void(): Promise<void> {
     await this.#request(this.#config.request.path, this.#config.request.options);
   }
 
