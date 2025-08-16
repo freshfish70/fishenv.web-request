@@ -6,20 +6,32 @@ export class Wrq implements WrqInstance {
 
   constructor(config: WrqOptions = {}) {
     this.#config = config;
+
+    if (config.json === undefined) {
+      this.#config.json = true; // Default to true if not specified
+    }
   }
 
   get name() {
     return this.#config.name || 'wrq';
   }
 
-  #transformBody(body: Body) {
-    if (!body) {
-      return null;
+  /**
+   * Transforms the body of the request to be compatible with fetch.
+   * If the body is an object and `transformJson` is true, it converts the body to a JSON string.
+   * If the body is already a string, it returns it as is.
+   * If the body is undefined or null, it returns null.
+   * @param body - The body of the request, which can be an object, string, undefined, or null.
+   * @param transformJson - A boolean indicating whether to transform the body to JSON.
+   * @returns The transformed body, which is a string if `transformJson` is true and the body is an object, or the original body if it is a string.
+   * If the body is undefined or null, it returns null.
+   */
+  #transformBody(body: Body, transformJson: boolean = true) {
+    if (typeof body === 'object') {
+      return transformJson ? JSON.stringify(body) : body?.toString();
     }
 
-    if (typeof body === 'object') {
-      return JSON.stringify(body);
-    }
+    return body;
   }
 
   #toHandler({ path, method, options, body }: {
@@ -28,6 +40,11 @@ export class Wrq implements WrqInstance {
     options?: BaseRequestOptions;
     body?: Body;
   }): Handler {
+    let transformJson = this.#config.json;
+    if (options?.json !== undefined) {
+      transformJson = options.json;
+    }
+
     return new Handler({
       ...this.#config,
       request: {
@@ -35,7 +52,7 @@ export class Wrq implements WrqInstance {
         options: {
           ...options,
           method,
-          body: this.#transformBody(body)
+          body: this.#transformBody(body, transformJson)
         }
       }
     });

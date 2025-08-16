@@ -1,8 +1,9 @@
-import { ErrorHook, InternalRequestOptions, RequestHooks, ResponseHook, WrqOptions } from './types.ts';
 import { logger } from './helpers/mod.ts';
-import { HttpError, TimeoutError } from './errors/mod.ts';
+import { AbortError, HttpError, TimeoutError, WrqError } from './errors/mod.ts';
+import type { ErrorHook, InternalRequestOptions, ResponseHook, WrqOptions } from './types.ts';
 
-type HandlerArgs = WrqOptions & {
+type HandlerOptions = WrqOptions & {
+  log?: boolean;
   request: {
     options: InternalRequestOptions;
     path: string;
@@ -10,11 +11,15 @@ type HandlerArgs = WrqOptions & {
 };
 
 export class Handler {
+  /**
+   * Default timeout for requests in milliseconds.
+   * @default 10000 (10 seconds)
+   */
   private readonly TIMEOUT_DEFAULT = 10_000;
 
-  #config: HandlerArgs;
+  #config: HandlerOptions;
 
-  constructor(config: HandlerArgs) {
+  constructor(config: HandlerOptions) {
     this.#config = config;
   }
 
@@ -22,11 +27,12 @@ export class Handler {
     return new URL(`${this.#config.baseUrl || ''}${path}`);
   }
 
-  async #tryRunBeforeRequestHook(options: InternalRequestOptions) {
-    logger.log('Try run before request hook');
+  async #beforeRequestHook(options: InternalRequestOptions) {
+    this.#config.log && logger.log('Try run before request hook');
+
     const hookResult = this.#config.hooks?.beforeRequest?.(options);
     const newOptions = hookResult instanceof Promise ? await hookResult : hookResult;
-    logger.log('Before request hook done');
+    this.#config.log && logger.log('Before request hook done');
     // TODO: Deep merge
     return {
       ...options,
@@ -34,34 +40,34 @@ export class Handler {
     };
   }
 
-  async #tryRunResponseHook(response: Response, hookName: ResponseHook) {
-    logger.log(`Try run response hook: ${hookName}`);
+  async #responseHook(response: Response, hookName: ResponseHook) {
+    this.#config.log && logger.log(`Try run response hook: ${hookName}`);
     const hookResult = this.#config.hooks?.[hookName]?.(response.clone());
     if (hookResult instanceof Promise) {
       await hookResult;
     }
-    logger.log('Response hook done');
+    this.#config.log && logger.log('Response hook done');
   }
 
-  async #tryRunErrorHook(error: Error, hookName: ErrorHook) {
-    logger.log(`Try run error hook: ${hookName}`);
+  async #errorHook(error: Error, hookName: ErrorHook) {
+    this.#config.log && logger.log(`Try run error hook: ${hookName}`);
     const hook = this.#config.hooks?.[hookName]?.(error);
 
     if (hook instanceof Promise) {
       await hook;
     }
 
-    logger.log(`Error hook done`);
+    this.#config.log && logger.log(`Error hook done`);
   }
 
   async #request(path: string, options: InternalRequestOptions) {
     try {
-      logger.log('Starting request', path, options);
+      this.#config.log && logger.log('Starting request', path, options);
       const url = this.#requestUrl(path);
 
       const { timeout, controller } = options;
       options.signal = controller ? controller.signal : new AbortController().signal;
-      options = await this.#tryRunBeforeRequestHook(options);
+      options = await this.#beforeRequestHook(options);
 
       const response = await new Promise<Response>((resolve, reject) => {
         const timer = setTimeout(() => {
@@ -74,48 +80,87 @@ export class Handler {
           .finally(() => clearTimeout(timer));
       });
 
-      await this.#tryRunResponseHook(response, 'onResponse');
+      await this.#responseHook(response, 'onResponse');
       if (!response.ok) {
-        logger.warn(`Request failed with status ${response.status}`);
-        await this.#tryRunErrorHook(new HttpError({ options, response }), 'onError');
+        this.#config.log && logger.warn(`Request failed with status ${response.status}`);
+        throw new HttpError({ options, response }), 'onError';
       } else {
-        await this.#tryRunResponseHook(response, 'onSuccess');
+        await this.#responseHook(response, 'onSuccess');
       }
 
       return response;
     } catch (error) {
-      if (!(error instanceof Error)) { return; }
+      let _error = error;
 
       let hookType: ErrorHook = 'onError';
-      if (error instanceof TimeoutError) {
+      if (_error instanceof TimeoutError) {
         hookType = 'onTimeout';
-      } else if ((error as Error)?.name === 'AbortError') {
+      } else if (typeof _error === 'string') {
+        _error = new AbortError(_error, { options });
         hookType = 'onAbort';
       }
 
-      await this.#tryRunErrorHook(error as Error, hookType);
+      await this.#errorHook(_error as Error, hookType);
 
-      throw error;
+      throw _error;
     }
   }
 
+  /**
+   * Executes the request and returns the response as JSON with provided type.
+   * A transformation function can be applied to the result before returning it.
+   * This method is useful for parsing the response body as JSON
+   * and applying any necessary transformations to the data, like zod and class-transformer.
+   *
+   * @param {Function} [transform] - Optional transformation function to apply to the JSON data.
+   * @return {Promise<T>} A promise that resolves to the transformed JSON data.
+   * @throws {WrqError} If no response is received from the request.
+   * @throws {HttpError} If the response status is not OK (2xx).
+   * @throws {TimeoutError} If the request times out.
+   * @throws {AbortError} If the request is aborted or any other error occurs.
+   */
   async json<T>(transform?: (data: unknown) => T): Promise<T> {
-    const result = await this.#request(this.#config.request.path, this.#config.request.options);
-
-    if (!result) {
-      throw new Error('Request failed');
+    const response = await this.#request(this.#config.request.path, this.#config.request.options);
+    if (!response) {
+      throw new WrqError('No response received from request');
     }
 
-    const j = await result.json();
-
+    const j = await response.json();
     return (transform ? transform(j) : j) as T;
   }
 
+  /**
+   * Executes the request and returns the response blob.
+   *
+   * @return {Promise<T>} A promise that resolves to the transformed JSON data.
+   * @throws {WrqError} If no response is received from the request.
+   * @throws {HttpError} If the response status is not OK (2xx).
+   * @throws {TimeoutError} If the request times out.
+   * @throws {AbortError} If the request is aborted or any other error occurs.
+   */
+  async blob(): Promise<Blob> {
+    const response = await this.#request(this.#config.request.path, this.#config.request.options);
+    if (!response) {
+      throw new WrqError('No response received from request');
+    }
+    return await response.blob();
+  }
+
+  /**
+   * Executes the request and returns the raw response object.
+   * This is the native Response object.
+   *
+   * @return {Promise<T>} A promise that resolves to the transformed JSON data.
+   * @throws {WrqError} If no response is received from the request.
+   * @throws {HttpError} If the response status is not OK (2xx).
+   * @throws {TimeoutError} If the request times out.
+   * @throws {AbortError} If the request is aborted or any other error occurs.
+   */
   async raw(): Promise<Response> {
     const result = await this.#request(this.#config.request.path, this.#config.request.options);
 
     if (!result) {
-      throw new Error('Request failed');
+      throw new WrqError('No response received from request');
     }
 
     return result;

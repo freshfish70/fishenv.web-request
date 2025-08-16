@@ -6,6 +6,6 @@ import { Wrq } from './wrq.ts';
  * @param {WrqOptions} args - The options to configure the Wrq instance.
  * @return {Wrq} A new instance of Wrq.
  */
-export default function instance(args: WrqOptions): Wrq {
+export default function instance(args?: WrqOptions): Wrq {
   return new Wrq(args);
 }
