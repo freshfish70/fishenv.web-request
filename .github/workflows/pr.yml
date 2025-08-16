@@ -3,7 +3,7 @@ on:
   - pull_request
 jobs:
   test:
-    name: Testing
+    name: testing
     runs-on: ubuntu-latest
     steps:
       - name: Clone repository
