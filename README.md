@@ -170,7 +170,7 @@ try {
 
 You can handle the response in different ways:
 
-- `.json<T>()`: Parses the response body as JSON and optionally transforms it.
+- `.json<T>()`: Parses the response body as JSON and optionally transforms it with own handler.
 - `.blob()`: Returns the response body as a `Blob`.
 - `.raw()`: Returns the raw `Response` object.
 - `.bare()`: Returns void
