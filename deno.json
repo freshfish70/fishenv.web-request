@@ -1,0 +1,25 @@
+{
+  "$schema": "https://raw.githubusercontent.com/denoland/deno/refs/heads/main/cli/schemas/config-file.v1.json",
+  "tasks": {
+    "dev": "deno run --watch main.ts"
+  },
+  "imports": {
+    "@std/assert": "jsr:@std/assert@1"
+  },
+  "fmt": {
+    "useBraces": "always",
+    "trailingCommas": "never",
+    "operatorPosition": "sameLine",
+    "spaceSurroundingProperties": true,
+    "singleBodyPosition": "sameLine",
+    "quoteProps": "consistent",
+    "spaceAround": false,
+    "newLineKind": "lf",
+    "bracePosition": "sameLine",
+    "lineWidth": 120,
+    "useTabs": false,
+    "semiColons": true,
+    "indentWidth": 2,
+    "singleQuote": true
+  }
+}
