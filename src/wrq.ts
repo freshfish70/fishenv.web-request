@@ -16,7 +16,7 @@ export class Wrq implements WrqInstance {
     }
   }
 
-  get name() {
+  get name(): string {
     return this.#config.name || 'wrq';
   }
 

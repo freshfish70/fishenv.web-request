@@ -12,7 +12,9 @@ jobs:
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - name: Build step
-        run: "deno check"
       - name: Build test
         run: "deno test"
+      - name: Build step
+        run: "deno check"
+      - name: Publish verification
+        run: "deno publish --dry-run"
