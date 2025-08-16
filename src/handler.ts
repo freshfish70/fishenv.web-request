@@ -1,5 +1,6 @@
-import { InternalRequestOptions, RequestHooks, WrqOptions } from './types.ts';
-import logger from './logger.ts';
+import { ErrorHook, InternalRequestOptions, RequestHooks, ResponseHook, WrqOptions } from './types.ts';
+import { logger } from './helpers/mod.ts';
+import { HttpError, TimeoutError } from './errors/mod.ts';
 
 type HandlerArgs = WrqOptions & {
   request: {
@@ -9,6 +10,8 @@ type HandlerArgs = WrqOptions & {
 };
 
 export class Handler {
+  private readonly TIMEOUT_DEFAULT = 10_000;
+
   #config: HandlerArgs;
 
   constructor(config: HandlerArgs) {
@@ -31,7 +34,7 @@ export class Handler {
     };
   }
 
-  async #tryRunResponseHook(response: Response, hookName: keyof Pick<RequestHooks, 'onResponse' | 'onSuccess'>) {
+  async #tryRunResponseHook(response: Response, hookName: ResponseHook) {
     logger.log(`Try run response hook: ${hookName}`);
     const hookResult = this.#config.hooks?.[hookName]?.(response.clone());
     if (hookResult instanceof Promise) {
@@ -40,7 +43,7 @@ export class Handler {
     logger.log('Response hook done');
   }
 
-  async #tryRunErrorHook(error: Error, hookName: keyof Pick<RequestHooks, 'onAbort' | 'onError' | 'onTimeout'>) {
+  async #tryRunErrorHook(error: Error, hookName: ErrorHook) {
     logger.log(`Try run error hook: ${hookName}`);
     const hook = this.#config.hooks?.[hookName]?.(error);
 
@@ -57,19 +60,13 @@ export class Handler {
       const url = this.#requestUrl(path);
 
       const { timeout, controller } = options;
-
       options.signal = controller ? controller.signal : new AbortController().signal;
       options = await this.#tryRunBeforeRequestHook(options);
 
-      const result = await new Promise<Response>((resolve, reject) => {
-        let timer = undefined;
-        if (timeout) {
-          timer = setTimeout(() => {
-            logger.warn(`Request timed out after ${timeout}ms`);
-            reject(new Error(`Request timed out after ${timeout}ms`));
-            this.#tryRunErrorHook(new Error(`Request timed out after ${timeout}ms`), 'onTimeout');
-          }, timeout);
-        }
+      const response = await new Promise<Response>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          reject(new TimeoutError({ options }));
+        }, timeout || this.TIMEOUT_DEFAULT);
 
         fetch(url, options)
           .then(resolve)
@@ -77,25 +74,32 @@ export class Handler {
           .finally(() => clearTimeout(timer));
       });
 
-      console.log('Got result', result);
-
-      await this.#tryRunResponseHook(result, 'onResponse');
-      if (!result.ok) {
-        logger.warn(`Request failed with status ${result.status}`);
-        await this.#tryRunErrorHook(new Error(`Request failed with status ${result.status}`), 'onError');
+      await this.#tryRunResponseHook(response, 'onResponse');
+      if (!response.ok) {
+        logger.warn(`Request failed with status ${response.status}`);
+        await this.#tryRunErrorHook(new HttpError({ options, response }), 'onError');
       } else {
-        await this.#tryRunResponseHook(result, 'onSuccess');
+        await this.#tryRunResponseHook(response, 'onSuccess');
       }
 
-      return result;
+      return response;
     } catch (error) {
-      const type = options.signal?.aborted ? 'onAbort' : 'onError';
-      await this.#tryRunErrorHook(error as Error, type);
+      if (!(error instanceof Error)) { return; }
+
+      let hookType: ErrorHook = 'onError';
+      if (error instanceof TimeoutError) {
+        hookType = 'onTimeout';
+      } else if ((error as Error)?.name === 'AbortError') {
+        hookType = 'onAbort';
+      }
+
+      await this.#tryRunErrorHook(error as Error, hookType);
+
       throw error;
     }
   }
 
-  async json<T>(transform?: (inp: unknown) => T): Promise<T> {
+  async json<T>(transform?: (data: unknown) => T): Promise<T> {
     const result = await this.#request(this.#config.request.path, this.#config.request.options);
 
     if (!result) {
@@ -104,10 +108,7 @@ export class Handler {
 
     const j = await result.json();
 
-    if (transform) {
-      return transform(j);
-    }
-    return j as T;
+    return (transform ? transform(j) : j) as T;
   }
 
   async raw(): Promise<Response> {

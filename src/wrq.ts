@@ -1,5 +1,5 @@
+import type { BaseRequestOptions, Body, RequestMethod, WrqInstance, WrqOptions } from './types.ts';
 import { Handler } from './handler.ts';
-import { BaseRequestOptions, Body, RequestMethod, WrqInstance, WrqOptions } from './types.ts';
 
 export class Wrq implements WrqInstance {
   #config: WrqOptions = {};

@@ -1,14 +1,39 @@
 import { Handler } from './handler.ts';
 
 export type WrqOptions = {
+  /**
+   * The name of the request instance.
+   * Used for logging and debugging purposes.
+   */
   name?: string;
+  /**
+   * The base URL for the requests.
+   * If not provided, the requests will be made to the current origin.
+   */
   baseUrl?: string;
+  /**
+   * Default request headers.
+   * These headers will be added to every request unless overridden per request.
+   */
   headers?: Record<string, string>;
+  /**
+   * Default request timeout.
+   * This is the maximum time to wait for a response before aborting the request.
+   * This can be overridden per request.
+   * Defaults to 10_000ms (10 seconds).
+   */
   timeout?: number;
+  /**
+   * Hooks to run at various stages of the request lifecycle.
+   */
   hooks?: RequestHooks;
 };
 
 type RequestHookResult = void | Promise<void>;
+
+export type ResponseHook = keyof Pick<RequestHooks, 'onResponse' | 'onSuccess'>;
+export type ErrorHook = keyof Pick<RequestHooks, 'onError' | 'onTimeout' | 'onAbort'>;
+export type BeforeRequestHook = keyof Pick<RequestHooks, 'beforeRequest'>;
 
 export type RequestHooks = {
   beforeRequest?: (options: BaseRequestOptions) => BaseRequestOptions | Promise<BaseRequestOptions> | void;
