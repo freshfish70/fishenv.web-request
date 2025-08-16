@@ -83,7 +83,7 @@ export class Handler {
       await this.#responseHook(response, 'onResponse');
       if (!response.ok) {
         this.#config.log && logger.warn(`Request failed with status ${response.status}`);
-        throw new HttpError({ options, response }), 'onError';
+        throw new HttpError({ options, response });
       } else {
         await this.#responseHook(response, 'onSuccess');
       }
@@ -127,6 +127,20 @@ export class Handler {
 
     const j = await response.json();
     return (transform ? transform(j) : j) as T;
+  }
+
+  /**
+   * Executes the request without returning any data.
+   * This method is useful for requests where you do not need to process the response body,
+   *
+   * @return {Promise<void>} A promise that resolves to void.
+   * @throws {WrqError} If no response is received from the request.
+   * @throws {HttpError} If the response status is not OK (2xx).
+   * @throws {TimeoutError} If the request times out.
+   * @throws {AbortError} If the request is aborted or any other error occurs.
+   */
+  async bare(): Promise<void> {
+    await this.#request(this.#config.request.path, this.#config.request.options);
   }
 
   /**

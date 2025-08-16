@@ -8,7 +8,11 @@ export class Wrq implements WrqInstance {
     this.#config = config;
 
     if (config.json === undefined) {
-      this.#config.json = true; // Default to true if not specified
+      this.#config.json = true;
+    }
+
+    if (!config.name) {
+      this.#config.name = `wrq_client:${Math.random().toString(16).substring(2, 8)}`;
     }
   }
 
