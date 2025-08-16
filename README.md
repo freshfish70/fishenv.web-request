@@ -7,7 +7,7 @@ I created this library to simplify HTTP handling in my projects without the over
 
 **WORK IN PROGRESS**: This library is still under development, and while it is functional, it may not yet have all the features you need.
 
-[![JSR](https://jsr.io/badges/@fishenv/web-request)](https://jsr.io/package/@fishenv/web-request)
+[![JSR](https://jsr.io/@fishenv/wrq)](https://jsr.io/@fishenv/wrq)
 
 ## Features
 
@@ -22,15 +22,15 @@ I created this library to simplify HTTP handling in my projects without the over
 ## Installation
 
 ```typescript
-import wrq from 'jsr:@fishenv/web-request';
+import wrq from 'jsr:@fishenv/wrq';
 ```
 
 Since it is a default export you can name it anything you like.
 
 ```typescript
-import client from 'jsr:@fishenv/web-request';
+import client from 'jsr:@fishenv/wrq';
 ...
-import http from 'jsr:@fishenv/web-request';
+import http from 'jsr:@fishenv/wrq';
 ```
 
 ## Usage
@@ -40,9 +40,9 @@ import http from 'jsr:@fishenv/web-request';
 The simplest way to use `wrq` is to call the `get` method with a URL:
 
 ```typescript
-import wrq from 'jsr:@fishenv/web-request';
+import wrq from 'jsr:@fishenv/wrq';
 
-const response = await wrq.get('https://jsonplaceholder.typicode.com/todos/1').json();
+const response = await wrq.get('https://example.com').json();
 
 console.log(response);
 ```
@@ -52,7 +52,7 @@ console.log(response);
 Sending data with a `POST` request is just as easy. The body will be automatically serialized to JSON.
 
 ```typescript
-import wrq from 'jsr:@fishenv/web-request';
+import wrq from 'jsr:@fishenv/wrq';
 
 const newTodo = {
   title: 'my new todo',
@@ -60,22 +60,19 @@ const newTodo = {
   userId: 1,
 };
 
-const response = await wrq.post('https://jsonplaceholder.typicode.com/todos', newTodo).json();
+const response = await wrq.post('https://example.com', newTodo).json();
 
 console.log(response);
 ```
 
 ### Request without response
 
-If you want to make a request without expecting a response body, you can use the `bare` method.
-This is useful where you don't need the response data.
+If you want to make a request without expecting a response body, you can use the `void` method.
+This is useful where you don't need the response data or there is no response body.
 
 ```typescript
-import wrq from 'jsr:@fishenv/web-request';
-
-const response = await wrq.delete('https://jsonplaceholder.typicode.com/todos/1').bare();
-
-console.log(response);
+import wrq from 'jsr:@fishenv/wrq';
+await wrq.delete('https://example.com/resource/1').void();
 ```
 
 
@@ -84,10 +81,10 @@ console.log(response);
 You can create an instance of `wrq` with default options that will be applied to all requests made with that instance.
 
 ```typescript
-import wrq from 'jsr:@fishenv/web-request';
+import wrq from 'jsr:@fishenv/wrq';
 
 const jsonPlaceholder = wrq({
-  baseUrl: 'https://jsonplaceholder.typicode.com',
+baseUrl: 'https://example.com',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -112,10 +109,10 @@ console.log(createdTodo);
 Hooks allow you to intercept and modify requests and responses. You can use them for logging, adding authentication tokens, or handling errors.
 
 ```typescript
-import wrq from 'jsr:@fishenv/web-request';
+import wrq from 'jsr:@fishenv/wrq';
 
 const api = wrq({
-  baseUrl: 'https://jsonplaceholder.typicode.com',
+baseUrl: 'https://example.com',
   hooks: {
     beforeRequest: (options) => {
       console.log('Sending request:', options.method, options.url);
@@ -148,11 +145,11 @@ await api.get('/todos/1');
 - `WrqError`: A generic error for other issues.
 
 ```typescript
-import wrq from 'jsr:@fishenv/web-request';
-import { HttpError, TimeoutError } from 'jsr:@fishenv/web-request/errors';
+import wrq from 'jsr:@fishenv/wrq';
+import { HttpError, TimeoutError } from 'jsr:@fishenv/wrq/errors';
 
 try {
-  await wrq.get('https://jsonplaceholder.typicode.com/non-existent-path').json();
+  await wrq.get('https://example.com').json();
 } catch (error) {
   if (error instanceof HttpError) {
     console.error(`HTTP Error: ${error.response.status}`);
@@ -173,20 +170,23 @@ You can handle the response in different ways:
 - `.json<T>()`: Parses the response body as JSON and optionally transforms it with own handler.
 - `.blob()`: Returns the response body as a `Blob`.
 - `.raw()`: Returns the raw `Response` object.
-- `.bare()`: Returns void
+- `.void()`: Returns void
 
 ```typescript
 // Get JSON
-const user = await wrq.get('https://jsonplaceholder.typicode.com/users/1').json<{ name: string }>();
+const user = await wrq.get('https://example.com/users').json<{ name: string }>();
 console.log(user.name);
 
 // Get a Blob (e.g., for an image)
-const imageBlob = await wrq.get('https://via.placeholder.com/150').blob();
+const imageBlob = await wrq.get('https://example.com/users/1/thumbnail').blob();
 console.log(imageBlob);
 
 // Get the raw Response object
-const rawResponse = await wrq.get('https://jsonplaceholder.typicode.com/users/1').raw();
+const rawResponse = await wrq.get('https://example.com/users/1').raw();
 console.log(rawResponse.headers.get('content-type'));
+
+// Void the response
+await wrq.get('https://example.com/users/1').void();
 ```
 
 ### Cloning an Instance
@@ -194,7 +194,7 @@ console.log(rawResponse.headers.get('content-type'));
 You can clone an existing instance to create a new one with a modified configuration. This is useful for creating specialized clients from a base configuration.
 
 ```typescript
-import wrq from 'jsr:@fishenv/web-request';
+import wrq from 'jsr:@fishenv/wrq';
 
 const baseApi = wrq({
   baseUrl: 'https://api.example.com',
