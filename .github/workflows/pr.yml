@@ -1,0 +1,18 @@
+name: pr
+on:
+  - pull_request
+jobs:
+  test:
+    name: Testing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+      - name: Install Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Build step
+        run: "deno check"
+      - name: Build test
+        run: "deno test"
