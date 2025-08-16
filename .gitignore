@@ -1,0 +1,6 @@
+env
+.test_server
+dist
+coverage
+node_modules
+*.log
