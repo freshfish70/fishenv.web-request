@@ -1,2 +1,4 @@
-export * from './factory.ts';
+import factory from './factory.ts';
+
 export * from './types.ts';
+export default factory;
