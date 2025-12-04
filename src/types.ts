@@ -45,7 +45,10 @@ export type WrqOptions = {
 type RequestHookResult = void | Promise<void>;
 
 export type ResponseHook = keyof Pick<RequestHooks, 'onResponse' | 'onSuccess'>;
-export type ErrorHook = keyof Pick<RequestHooks, 'onError' | 'onTimeout' | 'onAbort'>;
+export type ErrorHook = keyof Pick<
+  RequestHooks,
+  'onError' | 'onTimeout' | 'onAbort'
+>;
 export type BeforeRequestHook = keyof Pick<RequestHooks, 'beforeRequest'>;
 
 export type RequestHooks = {
@@ -54,7 +57,9 @@ export type RequestHooks = {
    * Can modify the request options or return a new set of options, or partially modify them.
    * The returned options will be deeply merged with the original request options so only modified properties need to be returned.
    */
-  beforeRequest?: (options: BaseRequestOptions) => BaseRequestOptions | Promise<BaseRequestOptions> | void;
+  beforeRequest?: (
+    options: BaseRequestOptions
+  ) => BaseRequestOptions | Promise<BaseRequestOptions> | void;
   /**
    * Hook to run when a response is received.
    * This is run before the response is processed.
@@ -93,17 +98,32 @@ export type RequestResponse<T = unknown> = Promise<RequestResult<T>>;
 /**
  * The type of HTTP request methods supported by the library.
  */
-export type RequestMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
+export type RequestMethod =
+  | 'GET'
+  | 'POST'
+  | 'PUT'
+  | 'DELETE'
+  | 'PATCH'
+  | 'HEAD'
+  | 'OPTIONS';
 
-export type BaseRequestOptions = Omit<RequestInit, 'method' | 'body' | 'signal'> & {
-  json?: boolean;
-  timeout?: number;
-  controller?: AbortController;
-};
+export type BaseRequestOptions =
+  & Omit<
+    RequestInit,
+    'method' | 'body' | 'signal'
+  >
+  & {
+    json?: boolean;
+    timeout?: number;
+    controller?: AbortController;
+  };
 
-export type InternalRequestOptions = RequestInit & BaseRequestOptions & {
-  method: RequestMethod;
-};
+export type InternalRequestOptions =
+  & RequestInit
+  & BaseRequestOptions
+  & {
+    method: RequestMethod;
+  };
 
 export type WrqRequestMethods = {
   get: (path: string, data?: BaseRequestOptions) => Handler;
@@ -131,4 +151,4 @@ export type WrqInstance = {
  * This allows for flexibility in the request body, accommodating various use cases.
  * The body is transformed to JSON
  */
-export type Body = string | object | undefined | null;
+export type Body = BodyInit;
