@@ -24,7 +24,7 @@ export class Handler {
   }
 
   #requestUrl(path: string): URL {
-    return new URL(`${this.#config.baseUrl || ''}${path}`.trim());
+    return new URL(`${this.#config.baseUrl || ''}${path}`);
   }
 
   async #beforeRequestHook(options: InternalRequestOptions) {

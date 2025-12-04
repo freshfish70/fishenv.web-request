@@ -35,15 +35,18 @@ export class Wrq implements WrqInstance {
       return null;
     }
 
-    if (typeof body === 'string') {
+    if (
+      body instanceof FormData ||
+      body instanceof Blob ||
+      body instanceof ArrayBuffer ||
+      body instanceof URLSearchParams ||
+      body instanceof ReadableStream ||
+      typeof body === 'string'
+    ) {
       return body;
     }
 
-    if (typeof body === 'object') {
-      return transformJson ? JSON.stringify(body) : body;
-    }
-
-    return body;
+    return transformJson ? JSON.stringify(body) : body;
   }
 
   #toHandler({
@@ -61,10 +64,6 @@ export class Wrq implements WrqInstance {
 
     if (options?.json !== undefined) {
       transformJson = options.json;
-    }
-
-    if (body instanceof FormData) {
-      transformJson = false;
     }
 
     return new Handler({
