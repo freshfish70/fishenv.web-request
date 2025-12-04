@@ -30,21 +30,38 @@ export class Wrq implements WrqInstance {
    * @returns The transformed body, which is a string if `transformJson` is true and the body is an object, or the original body if it is a string.
    * If the body is undefined or null, it returns null.
    */
-  #transformBody(body: Body, transformJson: boolean = true) {
-    if (typeof body === 'object') {
-      return transformJson ? JSON.stringify(body) : body?.toString();
+  #transformBody(body?: BodyInit, transformJson: boolean = true) {
+    if (body === undefined || body === null) {
+      return null;
     }
 
-    return body;
+    if (
+      body instanceof FormData ||
+      body instanceof Blob ||
+      body instanceof ArrayBuffer ||
+      body instanceof URLSearchParams ||
+      body instanceof ReadableStream ||
+      typeof body === 'string'
+    ) {
+      return body;
+    }
+
+    return transformJson ? JSON.stringify(body) : body;
   }
 
-  #toHandler({ path, method, options, body }: {
+  #toHandler({
+    path,
+    method,
+    options,
+    body
+  }: {
     path: string;
     method: RequestMethod;
     options?: BaseRequestOptions;
-    body?: Body;
+    body?: BodyInit;
   }): Handler {
     let transformJson = this.#config.json;
+
     if (options?.json !== undefined) {
       transformJson = options.json;
     }
