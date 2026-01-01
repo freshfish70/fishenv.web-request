@@ -66,6 +66,18 @@ export class Wrq implements WrqInstance {
       transformJson = options.json;
     }
 
+    /**
+     * Set default headers from the Wrq instance configuration if they are not already set in the request options.
+     */
+    Object.entries(this.#config.headers || {}).forEach(([key, value]) => {
+      options = options || {};
+      options.headers = (options.headers || {}) as Record<string, string>;
+
+      if (options.headers[key] === undefined) {
+        options.headers[key] = value;
+      }
+    });
+
     return new Handler({
       ...this.#config,
       request: {
