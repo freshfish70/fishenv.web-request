@@ -1,5 +1,6 @@
-import type { BaseRequestOptions, Body, RequestMethod, WrqInstance, WrqOptions } from './types.ts';
 import { Handler } from './handler.ts';
+import { deepMerge } from './helpers/mod.ts';
+import type { BaseRequestOptions, Body, RequestMethod, WrqInstance, WrqOptions } from './types.ts';
 
 export class Wrq implements WrqInstance {
   #config: WrqOptions = {};
@@ -68,13 +69,14 @@ export class Wrq implements WrqInstance {
 
     /**
      * Set default headers from the Wrq instance configuration if they are not already set in the request options.
+     * Always initialize headers as a plain object so the beforeRequest hook can safely read and mutate it.
      */
-    Object.entries(this.#config.headers || {}).forEach(([key, value]) => {
-      options = options || {};
-      options.headers = (options.headers || {}) as Record<string, string>;
+    options = options || {};
+    options.headers = (options.headers || {}) as Record<string, string>;
 
-      if (options.headers[key] === undefined) {
-        options.headers[key] = value;
+    Object.entries(this.#config.headers || {}).forEach(([key, value]) => {
+      if ((options.headers as Record<string, string>)[key] === undefined) {
+        (options.headers as Record<string, string>)[key] = value;
       }
     });
 
@@ -127,8 +129,6 @@ export class Wrq implements WrqInstance {
    * @returns A new instance of Wrq with the merged configuration.
    */
   clone(config: WrqOptions): Wrq {
-    // TODO: recursive merge
-    // For now, just shallow merge
-    return new Wrq({ ...this.#config, ...config });
+    return new Wrq(deepMerge(this.#config, config));
   }
 }
