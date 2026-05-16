@@ -1,4 +1,4 @@
-import { logger } from './helpers/mod.ts';
+import { deepMerge, logger } from './helpers/mod.ts';
 import { AbortError, HttpError, TimeoutError, WrqError } from './errors/mod.ts';
 import type { ErrorHook, InternalRequestOptions, ResponseHook, WrqOptions } from './types.ts';
 
@@ -33,11 +33,7 @@ export class Handler {
     const hookResult = this.#config.hooks?.beforeRequest?.(options);
     const newOptions = hookResult instanceof Promise ? await hookResult : hookResult;
     this.#config.log && logger.log('Before request hook done');
-    // TODO: Deep merge
-    return {
-      ...options,
-      ...newOptions
-    };
+    return deepMerge(options, newOptions as Partial<InternalRequestOptions>);
   }
 
   async #responseHook(response: Response, hookName: ResponseHook) {
