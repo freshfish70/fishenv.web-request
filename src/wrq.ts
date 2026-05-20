@@ -1,5 +1,5 @@
 import { Handler } from './handler.ts';
-import { deepMerge } from './helpers/mod.ts';
+import { deepFreeze, deepMerge } from './helpers/mod.ts';
 import type { BaseRequestOptions, Body, RequestMethod, WrqInstance, WrqOptions } from './types.ts';
 
 export class Wrq implements WrqInstance {
@@ -119,6 +119,32 @@ export class Wrq implements WrqInstance {
 
   patch(path: string, body?: Body, options?: BaseRequestOptions): Handler {
     return this.#toHandler({ method: 'PATCH', path, options, body });
+  }
+
+  /**
+   * Returns a deep-frozen snapshot of the current configuration.
+   *
+   * Each call produces an independent copy: the returned object shares no
+   * mutable references with the instance's internal config, and every nested
+   * plain object (e.g. `headers`, `hooks`) is recursively frozen so that
+   * attempted writes throw a `TypeError` at runtime.
+   *
+   * This makes it safe to compare configurations across instances
+   * (e.g. before and after a `clone()`) with a simple deep-equality check.
+   *
+   * @returns A deeply frozen, independent copy of `WrqOptions`.
+   */
+  getConfig(): Readonly<WrqOptions> {
+    // Spread the top-level config, then explicitly shallow-copy each nested
+    // plain-object field. deepMerge({}, config) would leave nested keys as
+    // the same object references (it only recurses when both sides have the
+    // key), so deepFreeze would accidentally freeze the live #config internals.
+    const copy: WrqOptions = {
+      ...this.#config,
+      ...(this.#config.headers && { headers: { ...this.#config.headers } }),
+      ...(this.#config.hooks && { hooks: { ...this.#config.hooks } }),
+    };
+    return deepFreeze(copy);
   }
 
   /**

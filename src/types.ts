@@ -143,6 +143,13 @@ export type WrqRequestMethods = {
  */
 export type WrqInstance = {
   clone: (options: WrqOptions) => WrqInstance;
+  /**
+   * Returns a deep-frozen snapshot of the instance's current configuration.
+   * The returned object is an independent copy — it will not reflect future
+   * changes to the instance, and mutating it (or any nested object within it)
+   * will throw a `TypeError` at runtime.
+   */
+  getConfig: () => Readonly<WrqOptions>;
 } & WrqRequestMethods;
 
 /**
