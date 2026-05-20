@@ -19,5 +19,6 @@ instance['delete'] = wrq.delete.bind(wrq) as WrqRequestMethods['delete'];
 instance['head'] = wrq.head.bind(wrq) as WrqRequestMethods['head'];
 instance['options'] = wrq.options.bind(wrq) as WrqRequestMethods['options'];
 instance['clone'] = wrq.clone.bind(wrq) as Wrq['clone'];
+instance['getConfig'] = wrq.getConfig.bind(wrq) as Wrq['getConfig'];
 
 export default instance;
