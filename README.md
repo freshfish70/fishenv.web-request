@@ -1,245 +1,211 @@
-# Wrq == Web Request 
+# wrq
 
-A lightweight web request library for modern runtimes and browsers, built on top of the native `fetch` API.
-Designed to be intuitive and easy to use, `wrq` provides a good developer experience for making HTTP requests.
+[![JSR](https://jsr.io/badges/@fishenv/wrq)](https://jsr.io/@fishenv/wrq)
 
-I created this library to simplify HTTP handling in my projects without the overhead of larger libraries and external dependencies.
+A small, dependency-free wrapper around the native `fetch` API for Deno, Node.js, Bun, and browsers.
 
-**WORK IN PROGRESS**: This library is still under development, and while it is functional, it may not yet have all the features you need.
-
-[![JSR](https://jsr.io/@fishenv/wrq)](https://jsr.io/@fishenv/wrq)
-
-## Features
-
-- **`fetch` API wrapper:** A simple API that wraps the native `fetch` API, making it easier to work with HTTP requests.
-- **Instance-based:** Create instances with default configurations (`baseUrl`, `headers`, `timeout`, etc.) to reuse across your application.
-- **Hooks:** Hook into the request/response lifecycle to perform actions like logging, authentication, or error handling.
-- **Error Handling:** Custom error types for better error handling and debugging.
-- **Response Handling:** Easily handle responses as JSON, Blob, or raw `Response` objects.
-- **Cloning:** Create new instances with modified configurations without affecting the original instance.
-- **TypeScript Support:** Written in TypeScript for full type safety and autocompletion.
+`wrq` provides reusable clients, request lifecycle hooks, per-request timeouts, and a lazy response handler for JSON,
+blobs, raw responses, or requests whose body you want to ignore.
 
 ## Installation
 
-```typescript
-import wrq from 'jsr:@fishenv/wrq';
+Add the package to a Deno project:
+
+```sh
+deno add jsr:@fishenv/wrq
 ```
 
-Since it is a default export you can name it anything you like.
+Then import its default export:
 
-```typescript
-import client from 'jsr:@fishenv/wrq';
-...
-import http from 'jsr:@fishenv/wrq';
+```ts
+import wrq from '@fishenv/wrq';
 ```
 
-## Usage
+You can also import it directly without adding it to `deno.json`:
 
-### Basic GET Request
-
-The simplest way to use `wrq` is to call the `get` method with a URL:
-
-```typescript
-import wrq from 'jsr:@fishenv/wrq';
-
-const response = await wrq.get('https://example.com').json();
-
-console.log(response);
+```ts
+import wrq from 'jsr:@fishenv/wrq@^0.2.3';
 ```
 
-### POST Request with a Body
+## Quick Start
 
-Sending data with a `POST` request is just as easy. The body will be automatically serialized to JSON.
+```ts
+import wrq from 'jsr:@fishenv/wrq@^0.2.3';
 
-```typescript
-import wrq from 'jsr:@fishenv/wrq';
-
-const newTodo = {
-  title: 'my new todo',
-  completed: false,
-  userId: 1,
+type Todo = {
+  id: number;
+  title: string;
+  completed: boolean;
 };
-
-const response = await wrq.post('https://example.com', newTodo).json();
-
-console.log(response);
-```
-
-### Request without response
-
-If you want to make a request without expecting a response body, you can use the `void` method.
-This is useful where you don't need the response data or there is no response body.
-
-```typescript
-import wrq from 'jsr:@fishenv/wrq';
-await wrq.delete('https://example.com/resource/1').void();
-```
-
-
-### Creating an Instance
-
-You can create an instance of `wrq` with default options that will be applied to all requests made with that instance.
-
-```typescript
-import wrq from 'jsr:@fishenv/wrq';
-
-const jsonPlaceholder = wrq({
-baseUrl: 'https://example.com',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  timeout: 5000, // 5 seconds
-});
-
-const todo = await jsonPlaceholder.get('/todos/1').json();
-console.log(todo);
-
-const newTodo = {
-  title: 'another todo',
-  completed: true,
-  userId: 1,
-};
-
-const createdTodo = await jsonPlaceholder.post('/todos', newTodo).json();
-console.log(createdTodo);
-```
-
-### Hooks
-
-Hooks allow you to intercept and modify requests and responses. You can use them for logging, adding authentication tokens, or handling errors.
-
-```typescript
-import wrq from 'jsr:@fishenv/wrq';
 
 const api = wrq({
-baseUrl: 'https://example.com',
-  hooks: {
-    beforeRequest: (options) => {
-      console.log('Sending request:', options.method, options.url);
-      // You can modify options here
-      options.headers = {
-        ...options.headers,
-        'X-Request-ID': crypto.randomUUID(),
-      };
-      return options;
-    },
-    onSuccess: (response) => {
-      console.log('Request successful:', response.status);
-    },
-    onError: (error) => {
-      console.error('Request failed:', error.message);
-    },
-  },
+  baseUrl: 'https://jsonplaceholder.typicode.com',
+  headers: {
+    Accept: 'application/json'
+  }
 });
 
-await api.get('/todos/1');
+const todo = await api.get('/todos/1').json<Todo>();
+console.log(todo.title);
 ```
 
-### Error Handling
+Calling an HTTP method creates a handler; it does not send the request. The request runs when you call and await one of
+`.json()`, `.blob()`, `.raw()`, or `.void()`.
 
-`wrq` provides custom error types to make error handling more specific.
+## Sending Data
 
-- `HttpError`: Thrown when the response status is not in the 2xx range.
-- `TimeoutError`: Thrown when the request times out.
-- `AbortError`: Thrown when the request is aborted.
-- `WrqError`: A generic error for other issues.
+`post`, `put`, and `patch` accept a standard
+[`BodyInit`](https://developer.mozilla.org/docs/Web/API/XMLHttpRequest_API/Sending_and_Receiving_Binary_Data#bodyinit)
+value. Set the content type and serialize JSON explicitly:
 
-```typescript
-import wrq from 'jsr:@fishenv/wrq';
-import { HttpError, TimeoutError } from 'jsr:@fishenv/wrq/errors';
+```ts
+const api = wrq({
+  baseUrl: 'https://example.com/api',
+  headers: {
+    Accept: 'application/json',
+    'Content-Type': 'application/json'
+  }
+});
+
+const created = await api.post(
+  '/todos',
+  JSON.stringify({ title: 'Write documentation', completed: false })
+).json<{ id: number; title: string; completed: boolean }>();
+```
+
+Headers supplied to an individual request override client headers with the same key:
+
+```ts
+const response = await api.get('/todos', {
+  headers: { Authorization: 'Bearer token' },
+  timeout: 5_000
+}).raw();
+```
+
+The request options support standard `RequestInit` properties except `method`, `body`, and `signal`. The per-request
+`timeout` defaults to 10 seconds. Use `controller` instead of `signal` when a request needs to be cancellable:
+
+```ts
+const controller = new AbortController();
+const pending = api.get('/slow', { controller }).json();
+
+controller.abort();
+await pending;
+```
+
+## Reading Responses
+
+Every HTTP method returns a handler with four execution methods:
+
+| Method | Result |
+| --- | --- |
+| `.json<T>(transform?)` | Parses JSON and optionally maps the parsed value with `transform` |
+| `.blob()` | Resolves with a `Blob` |
+| `.raw()` | Resolves with the native `Response` |
+| `.void()` | Waits for completion and ignores the response body |
+
+A non-2xx response rejects all four methods. Calling an execution method again sends the request again, which can be
+used for simple manual retries:
+
+```ts
+const request = api.get('/status');
 
 try {
-  await wrq.get('https://example.com').json();
-} catch (error) {
-  if (error instanceof HttpError) {
-    console.error(`HTTP Error: ${error.response.status}`);
-    const body = await error.response.text();
-    console.error('Response body:', body);
-  } else if (error instanceof TimeoutError) {
-    console.error('Request timed out');
-  } else {
-    console.error('An unexpected error occurred:', error.message);
-  }
+  await request.void();
+} catch {
+  await request.void();
 }
 ```
 
-### Response Handling
+## Hooks
 
-You can handle the response in different ways:
+Hooks may be synchronous or asynchronous. `beforeRequest` may mutate its options or return partial replacement options;
+the result is deeply merged into the request.
 
-- `.json<T>()`: Parses the response body as JSON and optionally transforms it with own handler.
-- `.blob()`: Returns the response body as a `Blob`.
-- `.raw()`: Returns the raw `Response` object.
-- `.void()`: Returns void
+```ts
+const api = wrq({
+  baseUrl: 'https://example.com/api',
+  hooks: {
+    beforeRequest: (options) => ({
+      headers: {
+        ...options.headers,
+        'X-Request-ID': crypto.randomUUID()
+      }
+    }),
+    onResponse: (response) => {
+      console.log('Received', response.status);
+    },
+    onSuccess: (response) => {
+      console.log('Successful', response.status);
+    },
+    onError: (error) => {
+      console.error(error.message);
+    },
+    onTimeout: (error) => {
+      console.error(error.message);
+    }
+  }
+});
 
-```typescript
-// Get JSON
-const user = await wrq.get('https://example.com/users').json<{ name: string }>();
-console.log(user.name);
-
-// Get a Blob (e.g., for an image)
-const imageBlob = await wrq.get('https://example.com/users/1/thumbnail').blob();
-console.log(imageBlob);
-
-// Get the raw Response object
-const rawResponse = await wrq.get('https://example.com/users/1').raw();
-console.log(rawResponse.headers.get('content-type'));
-
-// Void the response
-await wrq.get('https://example.com/users/1').void();
+await api.get('/todos/1').void();
 ```
 
-### Cloning an Instance
+For a received response, `onResponse` runs first. A 2xx response then runs `onSuccess`; a non-2xx response runs
+`onError`. Timeout failures run `onTimeout`, while native abort failures run `onError`. Response hooks receive a clone,
+so reading its body does not consume the response returned to the handler.
 
-You can clone an existing instance to create a new one with a modified configuration. This is useful for creating specialized clients from a base configuration.
+## Cloning Clients
 
-```typescript
-import wrq from 'jsr:@fishenv/wrq';
+`clone` creates a new client by deeply merging new options into the current configuration. The original client remains
+unchanged, and nested headers and hooks that are not replaced are preserved.
 
+```ts
 const baseApi = wrq({
-  baseUrl: 'https://api.example.com',
+  baseUrl: 'https://example.com/api',
+  headers: { Accept: 'application/json' }
 });
 
-const authApi = baseApi.clone({
-  headers: {
-    Authorization: 'Bearer your-token',
-  },
+const authenticatedApi = baseApi.clone({
+  headers: { Authorization: 'Bearer token' }
 });
 
-// This request will have the Authorization header
-await authApi.get('/me');
+await authenticatedApi.get('/me').json();
 ```
 
 ## API Reference
 
-### `wrq(options?: WrqOptions): Wrq`
+### Client options
 
-Creates a new `Wrq` instance.
+| Option | Type | Description |
+| --- | --- | --- |
+| `baseUrl` | `string` | Prefix concatenated with every request path |
+| `headers` | `Record<string, string>` | Headers applied unless overridden by a request |
+| `hooks` | `RequestHooks` | Request, response, and error lifecycle callbacks |
+| `json` | `boolean` | JSON-stringify non-native body values; defaults to `true` |
+| `name` | `string` | Optional client name |
 
-- `options`: An optional configuration object.
-  - `baseUrl?: string`: The base URL for all requests.
-  - `headers?: Record<string, string>`: Default headers for all requests.
-  - `timeout?: number`: Default timeout in milliseconds (default: 10000).
-  - `json?: boolean`: Whether to automatically serialize the request body to JSON (default: true).
-  - `hooks?: RequestHooks`: Hooks to intercept requests and responses.
+When using `baseUrl`, manage the boundary slash explicitly; the value and path are concatenated as written.
 
-### `wrq.get(path: string, options?: BaseRequestOptions): Handler`
-### `wrq.post(path: string, body?: Body, options?: BaseRequestOptions): Handler`
-### `wrq.put(path: string, body?: Body, options?: BaseRequestOptions): Handler`
-### `wrq.patch(path: string, body?: Body, options?: BaseRequestOptions): Handler`
-### `wrq.delete(path: string, options?: BaseRequestOptions): Handler`
-### `wrq.head(path: string, options?: BaseRequestOptions): Handler`
-### `wrq.options(path: string, options?: BaseRequestOptions): Handler`
+### Request methods
 
-These methods initiate a request and return a `Handler` instance that you can use to process the response.
-This also allows you to handle retries by calling the handler methods again.
+```text
+get(path: string, options?: BaseRequestOptions): Handler
+delete(path: string, options?: BaseRequestOptions): Handler
+head(path: string, options?: BaseRequestOptions): Handler
+options(path: string, options?: BaseRequestOptions): Handler
 
-### `handler.json<T>(transform?: (data: unknown) => T): Promise<T>`
-### `handler.blob(): Promise<Blob>`
-### `handler.raw(): Promise<Response>`
+post(path: string, body?: BodyInit, options?: BaseRequestOptions): Handler
+put(path: string, body?: BodyInit, options?: BaseRequestOptions): Handler
+patch(path: string, body?: BodyInit, options?: BaseRequestOptions): Handler
+```
 
-These methods on the `Handler` instance process the response.
+The default export is both callable (`wrq(options)`) and preconfigured with these request methods, so one-off requests
+can be made directly:
+
+```ts
+const response = await wrq.get('https://example.com').raw();
+```
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
+[MIT](./LICENSE)
