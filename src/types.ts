@@ -1,4 +1,4 @@
-import { Handler } from './handler.ts';
+import type { Handler } from './handler.ts';
 
 export type WrqOptions = {
   /**
@@ -45,10 +45,7 @@ export type WrqOptions = {
 type RequestHookResult = void | Promise<void>;
 
 export type ResponseHook = keyof Pick<RequestHooks, 'onResponse' | 'onSuccess'>;
-export type ErrorHook = keyof Pick<
-  RequestHooks,
-  'onError' | 'onTimeout' | 'onAbort'
->;
+export type ErrorHook = keyof Pick<RequestHooks, 'onError' | 'onTimeout' | 'onAbort'>;
 export type BeforeRequestHook = keyof Pick<RequestHooks, 'beforeRequest'>;
 
 export type RequestHooks = {
@@ -57,9 +54,8 @@ export type RequestHooks = {
    * Can modify the request options or return a new set of options, or partially modify them.
    * The returned options will be deeply merged with the original request options so only modified properties need to be returned.
    */
-  beforeRequest?: (
-    options: BaseRequestOptions
-  ) => BaseRequestOptions | Promise<BaseRequestOptions> | void;
+  // biome-ignore lint/suspicious/noConfusingVoidType: hooks may return nothing to leave options unchanged
+  beforeRequest?: (options: BaseRequestOptions) => BaseRequestOptions | Promise<BaseRequestOptions> | void;
   /**
    * Hook to run when a response is received.
    * This is run before the response is processed.
@@ -98,30 +94,16 @@ export type RequestResponse<T = unknown> = Promise<RequestResult<T>>;
 /**
  * The type of HTTP request methods supported by the library.
  */
-export type RequestMethod =
-  | 'GET'
-  | 'POST'
-  | 'PUT'
-  | 'DELETE'
-  | 'PATCH'
-  | 'HEAD'
-  | 'OPTIONS';
+export type RequestMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
 
-export type BaseRequestOptions =
-  & Omit<
-    RequestInit,
-    'method' | 'body' | 'signal'
-  >
-  & {
-    json?: boolean;
-    timeout?: number;
-    controller?: AbortController;
-  };
+export type BaseRequestOptions = Omit<RequestInit, 'method' | 'body' | 'signal'> & {
+  json?: boolean;
+  timeout?: number;
+  controller?: AbortController;
+};
 
-export type InternalRequestOptions =
-  & RequestInit
-  & BaseRequestOptions
-  & {
+export type InternalRequestOptions = RequestInit &
+  BaseRequestOptions & {
     method: RequestMethod;
   };
 
@@ -149,6 +131,6 @@ export type WrqInstance = {
  * The type of the body that can be sent in a request.
  * It can be an object, undefined, or null.
  * This allows for flexibility in the request body, accommodating various use cases.
- * The body is transformed to JSON
+ * Plain objects and arrays are transformed to JSON, other `BodyInit` values are sent as is.
  */
-export type Body = BodyInit;
+export type Body = BodyInit | Record<string, unknown> | unknown[];
