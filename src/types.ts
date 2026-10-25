@@ -131,6 +131,6 @@ export type WrqInstance = {
  * The type of the body that can be sent in a request.
  * It can be an object, undefined, or null.
  * This allows for flexibility in the request body, accommodating various use cases.
- * The body is transformed to JSON
+ * Plain objects and arrays are transformed to JSON, other `BodyInit` values are sent as is.
  */
-export type Body = BodyInit;
+export type Body = BodyInit | Record<string, unknown> | unknown[];

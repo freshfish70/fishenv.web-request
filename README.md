@@ -15,7 +15,7 @@ I created this library to simplify HTTP handling in my projects without the over
 - **Instance-based:** Create instances with default configurations (`baseUrl`, `headers`, `timeout`, etc.) to reuse across your application.
 - **Hooks:** Hook into the request/response lifecycle to perform actions like logging, authentication, or error handling.
 - **Error Handling:** Custom error types for better error handling and debugging.
-- **Response Handling:** Easily handle responses as JSON, Blob, or raw `Response` objects.
+- **Response Handling:** Easily handle responses as JSON, Blob, raw `Response` objects, or ignore the body entirely.
 - **Cloning:** Create new instances with modified configurations without affecting the original instance.
 - **TypeScript Support:** Written in TypeScript for full type safety and autocompletion.
 
@@ -55,7 +55,11 @@ console.log(response);
 
 ### POST Request with a Body
 
-Sending data with a `POST` request is just as easy. The body will be automatically serialized to JSON.
+Sending data with a `POST` request is just as easy. Plain object bodies are automatically serialized with `JSON.stringify`.
+`string`, `FormData`, `Blob`, `ArrayBuffer`, `URLSearchParams` and `ReadableStream` bodies are sent as is.
+Serialization can be turned off with `json: false` on the instance or per request.
+
+Note that serializing the body does not set a `Content-Type` header; add it yourself (e.g. as an instance default header) if your API requires it.
 
 ```typescript
 import wrq from '@fishenv/wrq';
@@ -113,6 +117,16 @@ console.log(createdTodo);
 ### Hooks
 
 Hooks allow you to intercept and modify requests and responses. You can use them for logging, adding authentication tokens, or handling errors.
+All hooks may be async.
+
+- `beforeRequest(options)`: Runs before the request is sent. The returned options are deep merged into the request options, so you only need to return what you changed (or nothing).
+- `onResponse(response)`: Runs when any response is received, before the status is checked.
+- `onSuccess(response)`: Runs when the response status is 2xx.
+- `onError(error)`: Runs when the request fails, including non-2xx responses (`HttpError`).
+- `onTimeout(error)`: Runs instead of `onError` when the request times out.
+- `onAbort(error)`: Runs instead of `onError` when the request is aborted with a string reason.
+
+Response hooks receive a clone of the response, so reading its body does not affect the result.
 
 ```typescript
 import wrq from '@fishenv/wrq';
@@ -121,13 +135,13 @@ const api = wrq({
   baseUrl: 'https://example.com',
   hooks: {
     beforeRequest: (options) => {
-      console.log('Sending request:', options.method, options.url);
-      // You can modify options here
-      options.headers = {
-        ...options.headers,
-        'X-Request-ID': crypto.randomUUID()
+      console.log('Sending request with headers:', options.headers);
+      // Return only what you want to change, it is deep merged into the request options
+      return {
+        headers: {
+          'X-Request-ID': crypto.randomUUID()
+        }
       };
-      return options;
     },
     onSuccess: (response) => {
       console.log('Request successful:', response.status);
@@ -145,26 +159,26 @@ await api.get('/todos/1');
 
 `wrq` provides custom error types to make error handling more specific.
 
-- `HttpError`: Thrown when the response status is not in the 2xx range.
-- `TimeoutError`: Thrown when the request times out.
-- `AbortError`: Thrown when the request is aborted.
-- `WrqError`: A generic error for other issues.
+- `HttpError`: Thrown when the response status is not in the 2xx range. Exposes `response` and `options`.
+- `TimeoutError`: Thrown when the request exceeds `timeout`.
+- `AbortError`: Thrown when the request is aborted via `controller.abort('reason')` with a string reason.
+- `WrqError`: The base class of all the errors above.
 
 ```typescript
 import wrq from '@fishenv/wrq';
-import { HttpError, TimeoutError } from '@fishenv/wrq/errors';
+import { HttpError, TimeoutError } from '@fishenv/wrq';
 
 try {
   await wrq.get('https://example.com').json();
 } catch (error) {
   if (error instanceof HttpError) {
-    console.error(`HTTP Error: ${error.response.status}`);
-    const body = await error.response.text();
+    console.error(`HTTP Error: ${error.response?.status}`);
+    const body = await error.response?.text();
     console.error('Response body:', body);
   } else if (error instanceof TimeoutError) {
     console.error('Request timed out');
   } else {
-    console.error('An unexpected error occurred:', error.message);
+    console.error('An unexpected error occurred:', error);
   }
 }
 ```
@@ -173,7 +187,7 @@ try {
 
 You can handle the response in different ways:
 
-- `.json<T>()`: Parses the response body as JSON and optionally transforms it with own handler.
+- `.json<T>(transform?)`: Parses the response body as JSON and optionally transforms it with your own function (e.g. a zod schema's `parse`).
 - `.blob()`: Returns the response body as a `Blob`.
 - `.raw()`: Returns the raw `Response` object.
 - `.void()`: Returns void
@@ -198,6 +212,7 @@ await wrq.get('https://example.com/users/1').void();
 ### Cloning an Instance
 
 You can clone an existing instance to create a new one with a modified configuration. This is useful for creating specialized clients from a base configuration.
+The new configuration is deep merged into the existing one, so headers and hooks from the base instance are kept.
 
 ```typescript
 import wrq from '@fishenv/wrq';
@@ -223,8 +238,9 @@ await authApi.get('/me');
 Creates a new `Wrq` instance.
 
 - `options`: An optional configuration object.
-  - `baseUrl?: string`: The base URL for all requests.
-  - `headers?: Record<string, string>`: Default headers for all requests.
+  - `name?: string`: Name of the instance, used for debugging (default: a random `wrq_client:xxxxxx` name).
+  - `baseUrl?: string`: The base URL for all requests. It is prepended to the request path as is, so request paths must start with `/` and full URLs must be used when no `baseUrl` is set.
+  - `headers?: Record<string, string>`: Default headers for all requests. Headers set on a request take precedence.
   - `timeout?: number`: Default timeout in milliseconds (default: 10000).
   - `json?: boolean`: Whether to automatically serialize the request body to JSON (default: true).
   - `hooks?: RequestHooks`: Hooks to intercept requests and responses.
@@ -244,13 +260,25 @@ Creates a new `Wrq` instance.
 ### `wrq.options(path: string, options?: BaseRequestOptions): Handler`
 
 These methods initiate a request and return a `Handler` instance that you can use to process the response.
-This also allows you to handle retries by calling the handler methods again.
+The request is not sent until one of the handler methods is called, and each call sends the request again, which can be used for retries.
+
+`BaseRequestOptions` accepts any `fetch` `RequestInit` option except `method`, `body` and `signal`, plus:
+
+- `json?: boolean`: Override the instance `json` setting for this request.
+- `timeout?: number`: Override the instance timeout for this request.
+- `controller?: AbortController`: Controller used to abort the request.
+
+### `wrq.clone(options: WrqOptions): Wrq`
+
+Creates a new instance with `options` deep merged into the current instance's configuration.
 
 ### `handler.json<T>(transform?: (data: unknown) => T): Promise<T>`
 
 ### `handler.blob(): Promise<Blob>`
 
 ### `handler.raw(): Promise<Response>`
+
+### `handler.void(): Promise<void>`
 
 These methods on the `Handler` instance process the response.
 
