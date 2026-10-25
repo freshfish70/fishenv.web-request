@@ -1,6 +1,6 @@
 {
   "name": "@fishenv/wrq",
-  "version": "0.2.4",
+  "version": "0.3.0",
   "description": "A lightweight web request library for modern runtimes and browsers, built on top of the native `fetch` API.",
   "license": "MIT",
   "type": "module",
