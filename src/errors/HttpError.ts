@@ -1,4 +1,4 @@
-import { BaseRequestOptions } from '../types.ts';
+import type { BaseRequestOptions } from '../types.ts';
 import { WrqError } from './WrqError.ts';
 
 type HttpErrorArgs = {

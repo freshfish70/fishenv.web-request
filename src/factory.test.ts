@@ -1,10 +1,11 @@
-import { assertInstanceOf } from 'jsr:@std/assert';
+import { describe, expect, test } from 'bun:test';
 import { Wrq } from './wrq.ts';
+
 const { default: instance } = await import('./factory.ts');
 
-Deno.test('Factory Test', async (t) => {
-  await t.step('Create instance with default options', () => {
+describe('Factory Test', () => {
+  test('Create instance with default options', () => {
     const client = instance();
-    assertInstanceOf(client, Wrq);
+    expect(client).toBeInstanceOf(Wrq);
   });
 });

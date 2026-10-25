@@ -1,0 +1,43 @@
+{
+  "name": "@fishenv/wrq",
+  "version": "0.2.4",
+  "description": "A lightweight web request library for modern runtimes and browsers, built on top of the native `fetch` API.",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/freshfish70/fishenv.web-request.git"
+  },
+  "homepage": "https://github.com/freshfish70/fishenv.web-request#readme",
+  "bugs": {
+    "url": "https://github.com/freshfish70/fishenv.web-request/issues"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/mod.d.ts",
+      "import": "./dist/mod.js"
+    }
+  },
+  "main": "./dist/mod.js",
+  "types": "./dist/mod.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.test.ts"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "test": "bun test",
+    "verify": "bun run lint && bun run typecheck && bun test && bun run build",
+    "prepublishOnly": "bun run build"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.3",
+    "@types/bun": "^1.4.4",
+    "typescript": "^5.9.0"
+  }
+}

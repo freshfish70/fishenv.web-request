@@ -1,5 +1,5 @@
-import { deepMerge, logger } from './helpers/mod.ts';
 import { AbortError, HttpError, TimeoutError, WrqError } from './errors/mod.ts';
+import { deepMerge, logger } from './helpers/mod.ts';
 import type { ErrorHook, InternalRequestOptions, ResponseHook, WrqOptions } from './types.ts';
 
 type HandlerOptions = WrqOptions & {
@@ -78,8 +78,7 @@ export class Handler {
 
       await this.#responseHook(response, 'onResponse');
       if (!response.ok) {
-        this.#config.log &&
-          logger.warn(`Request failed with status ${response.status}`);
+        this.#config.log && logger.warn(`Request failed with status ${response.status}`);
         throw new HttpError({ options, response });
       } else {
         await this.#responseHook(response, 'onSuccess');
@@ -117,10 +116,7 @@ export class Handler {
    * @throws {AbortError} If the request is aborted or any other error occurs.
    */
   async json<T>(transform?: (data: unknown) => T): Promise<T> {
-    const response = await this.#request(
-      this.#config.request.path,
-      this.#config.request.options
-    );
+    const response = await this.#request(this.#config.request.path, this.#config.request.options);
     if (!response) {
       throw new WrqError('No response received from request');
     }
@@ -140,10 +136,7 @@ export class Handler {
    * @throws {AbortError} If the request is aborted or any other error occurs.
    */
   async void(): Promise<void> {
-    await this.#request(
-      this.#config.request.path,
-      this.#config.request.options
-    );
+    await this.#request(this.#config.request.path, this.#config.request.options);
   }
 
   /**
@@ -156,10 +149,7 @@ export class Handler {
    * @throws {AbortError} If the request is aborted or any other error occurs.
    */
   async blob(): Promise<Blob> {
-    const response = await this.#request(
-      this.#config.request.path,
-      this.#config.request.options
-    );
+    const response = await this.#request(this.#config.request.path, this.#config.request.options);
     if (!response) {
       throw new WrqError('No response received from request');
     }
@@ -177,10 +167,7 @@ export class Handler {
    * @throws {AbortError} If the request is aborted or any other error occurs.
    */
   async raw(): Promise<Response> {
-    const result = await this.#request(
-      this.#config.request.path,
-      this.#config.request.options
-    );
+    const result = await this.#request(this.#config.request.path, this.#config.request.options);
 
     if (!result) {
       throw new WrqError('No response received from request');

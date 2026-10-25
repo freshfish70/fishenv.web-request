@@ -32,20 +32,22 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  * @returns A new object that is the deep-merged result.
  */
 export function deepMerge<T>(target: T, source: Partial<T> | null | undefined): T {
-  if (!isPlainObject(target) || source == null) return target;
+  if (!isPlainObject(target) || source == null) {
+    return target;
+  }
 
   const result: Record<string, unknown> = { ...(target as Record<string, unknown>) };
   const src = source as Record<string, unknown>;
 
   for (const key of Object.keys(src)) {
     const sourceVal = src[key];
-    if (sourceVal === undefined) continue;
+    if (sourceVal === undefined) {
+      continue;
+    }
 
     const targetVal = result[key];
 
-    result[key] = isPlainObject(sourceVal) && isPlainObject(targetVal)
-      ? deepMerge(targetVal, sourceVal)
-      : sourceVal;
+    result[key] = isPlainObject(sourceVal) && isPlainObject(targetVal) ? deepMerge(targetVal, sourceVal) : sourceVal;
   }
 
   return result as T;

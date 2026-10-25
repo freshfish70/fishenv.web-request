@@ -7,7 +7,7 @@ I created this library to simplify HTTP handling in my projects without the over
 
 **WORK IN PROGRESS**: This library is still under development, and while it is functional, it may not yet have all the features you need.
 
-[![JSR](https://jsr.io/@fishenv/wrq)](https://jsr.io/@fishenv/wrq)
+[![npm](https://img.shields.io/npm/v/@fishenv/wrq)](https://www.npmjs.com/package/@fishenv/wrq)
 
 ## Features
 
@@ -21,16 +21,22 @@ I created this library to simplify HTTP handling in my projects without the over
 
 ## Installation
 
+```sh
+npm install @fishenv/wrq
+# or
+bun add @fishenv/wrq
+```
+
 ```typescript
-import wrq from 'jsr:@fishenv/wrq';
+import wrq from '@fishenv/wrq';
 ```
 
 Since it is a default export you can name it anything you like.
 
 ```typescript
-import client from 'jsr:@fishenv/wrq';
+import client from '@fishenv/wrq';
 ...
-import http from 'jsr:@fishenv/wrq';
+import http from '@fishenv/wrq';
 ```
 
 ## Usage
@@ -40,7 +46,7 @@ import http from 'jsr:@fishenv/wrq';
 The simplest way to use `wrq` is to call the `get` method with a URL:
 
 ```typescript
-import wrq from 'jsr:@fishenv/wrq';
+import wrq from '@fishenv/wrq';
 
 const response = await wrq.get('https://example.com').json();
 
@@ -52,12 +58,12 @@ console.log(response);
 Sending data with a `POST` request is just as easy. The body will be automatically serialized to JSON.
 
 ```typescript
-import wrq from 'jsr:@fishenv/wrq';
+import wrq from '@fishenv/wrq';
 
 const newTodo = {
   title: 'my new todo',
   completed: false,
-  userId: 1,
+  userId: 1
 };
 
 const response = await wrq.post('https://example.com', newTodo).json();
@@ -71,7 +77,7 @@ If you want to make a request without expecting a response body, you can use the
 This is useful where you don't need the response data or there is no response body.
 
 ```typescript
-import wrq from 'jsr:@fishenv/wrq';
+import wrq from '@fishenv/wrq';
 await wrq.delete('https://example.com/resource/1').void();
 ```
 
@@ -81,14 +87,14 @@ await wrq.delete('https://example.com/resource/1').void();
 You can create an instance of `wrq` with default options that will be applied to all requests made with that instance.
 
 ```typescript
-import wrq from 'jsr:@fishenv/wrq';
+import wrq from '@fishenv/wrq';
 
 const jsonPlaceholder = wrq({
-baseUrl: 'https://example.com',
+  baseUrl: 'https://example.com',
   headers: {
-    'Content-Type': 'application/json',
+    'Content-Type': 'application/json'
   },
-  timeout: 5000, // 5 seconds
+  timeout: 5000 // 5 seconds
 });
 
 const todo = await jsonPlaceholder.get('/todos/1').json();
@@ -97,7 +103,7 @@ console.log(todo);
 const newTodo = {
   title: 'another todo',
   completed: true,
-  userId: 1,
+  userId: 1
 };
 
 const createdTodo = await jsonPlaceholder.post('/todos', newTodo).json();
@@ -109,17 +115,17 @@ console.log(createdTodo);
 Hooks allow you to intercept and modify requests and responses. You can use them for logging, adding authentication tokens, or handling errors.
 
 ```typescript
-import wrq from 'jsr:@fishenv/wrq';
+import wrq from '@fishenv/wrq';
 
 const api = wrq({
-baseUrl: 'https://example.com',
+  baseUrl: 'https://example.com',
   hooks: {
     beforeRequest: (options) => {
       console.log('Sending request:', options.method, options.url);
       // You can modify options here
       options.headers = {
         ...options.headers,
-        'X-Request-ID': crypto.randomUUID(),
+        'X-Request-ID': crypto.randomUUID()
       };
       return options;
     },
@@ -128,8 +134,8 @@ baseUrl: 'https://example.com',
     },
     onError: (error) => {
       console.error('Request failed:', error.message);
-    },
-  },
+    }
+  }
 });
 
 await api.get('/todos/1');
@@ -145,8 +151,8 @@ await api.get('/todos/1');
 - `WrqError`: A generic error for other issues.
 
 ```typescript
-import wrq from 'jsr:@fishenv/wrq';
-import { HttpError, TimeoutError } from 'jsr:@fishenv/wrq/errors';
+import wrq from '@fishenv/wrq';
+import { HttpError, TimeoutError } from '@fishenv/wrq/errors';
 
 try {
   await wrq.get('https://example.com').json();
@@ -194,16 +200,16 @@ await wrq.get('https://example.com/users/1').void();
 You can clone an existing instance to create a new one with a modified configuration. This is useful for creating specialized clients from a base configuration.
 
 ```typescript
-import wrq from 'jsr:@fishenv/wrq';
+import wrq from '@fishenv/wrq';
 
 const baseApi = wrq({
-  baseUrl: 'https://api.example.com',
+  baseUrl: 'https://api.example.com'
 });
 
 const authApi = baseApi.clone({
   headers: {
-    Authorization: 'Bearer your-token',
-  },
+    Authorization: 'Bearer your-token'
+  }
 });
 
 // This request will have the Authorization header
@@ -224,18 +230,26 @@ Creates a new `Wrq` instance.
   - `hooks?: RequestHooks`: Hooks to intercept requests and responses.
 
 ### `wrq.get(path: string, options?: BaseRequestOptions): Handler`
+
 ### `wrq.post(path: string, body?: Body, options?: BaseRequestOptions): Handler`
+
 ### `wrq.put(path: string, body?: Body, options?: BaseRequestOptions): Handler`
+
 ### `wrq.patch(path: string, body?: Body, options?: BaseRequestOptions): Handler`
+
 ### `wrq.delete(path: string, options?: BaseRequestOptions): Handler`
+
 ### `wrq.head(path: string, options?: BaseRequestOptions): Handler`
+
 ### `wrq.options(path: string, options?: BaseRequestOptions): Handler`
 
 These methods initiate a request and return a `Handler` instance that you can use to process the response.
 This also allows you to handle retries by calling the handler methods again.
 
 ### `handler.json<T>(transform?: (data: unknown) => T): Promise<T>`
+
 ### `handler.blob(): Promise<Blob>`
+
 ### `handler.raw(): Promise<Response>`
 
 These methods on the `Handler` instance process the response.
