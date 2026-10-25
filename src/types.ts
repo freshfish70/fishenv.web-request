@@ -60,7 +60,8 @@ export type RequestHooks = {
    * Hook to run when a response is received.
    * This is run before the response is processed.
    * Can be used to log the response, modify it, or perform other actions.
-   * The response is a clone of the original response to avoid side effects.
+   * The body is cloned on first access, so reading it does not affect the result.
+   * Read the body while the hook runs; it cannot be read after the hook has returned.
    */
   onResponse?: (response: Response) => RequestHookResult;
   /**
@@ -80,7 +81,8 @@ export type RequestHooks = {
   /**
    * Hook runs when the request is successful.
    * This is run before the response is processed and before the result is returned.
-   * The response is a clone of the original response to avoid side effects.
+   * The body is cloned on first access, so reading it does not affect the result.
+   * Read the body while the hook runs; it cannot be read after the hook has returned.
    */
   onSuccess?: (response: Response) => RequestHookResult;
 };

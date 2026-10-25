@@ -16,6 +16,7 @@ I created this library to simplify HTTP handling in my projects without the over
 - **Hooks:** Hook into the request/response lifecycle to perform actions like logging, authentication, or error handling.
 - **Error Handling:** Custom error types for better error handling and debugging.
 - **Response Handling:** Easily handle responses as JSON, Blob, raw `Response` objects, or ignore the body entirely.
+- **Server-Sent Events:** Read `text/event-stream` responses as an async iterable, with real HTTP errors and explicit close.
 - **Cloning:** Create new instances with modified configurations without affecting the original instance.
 - **TypeScript Support:** Written in TypeScript for full type safety and autocompletion.
 
@@ -126,7 +127,10 @@ All hooks may be async.
 - `onTimeout(error)`: Runs instead of `onError` when the request times out.
 - `onAbort(error)`: Runs instead of `onError` when the request is aborted with a string reason.
 
-Response hooks receive a clone of the response, so reading its body does not affect the result.
+Response hooks receive a response whose body is cloned the first time a hook reads it, so reading the body does not affect the result.
+Hooks that only inspect the status or headers do not clone anything, which keeps streaming responses (SSE, large downloads) unbuffered and cancellable.
+Read the body while the hook runs; storing the response and reading it later fails once the result has been consumed.
+Reading the body of an endless stream (such as SSE) in a hook will block the request until the stream ends.
 
 ```typescript
 import wrq from '@fishenv/wrq';
@@ -160,8 +164,9 @@ await api.get('/todos/1');
 `wrq` provides custom error types to make error handling more specific.
 
 - `HttpError`: Thrown when the response status is not in the 2xx range. Exposes `response` and `options`.
-- `TimeoutError`: Thrown when the request exceeds `timeout`.
+- `TimeoutError`: Thrown when the request exceeds `timeout`. The request is aborted, so its connection is released.
 - `AbortError`: Thrown when the request is aborted via `controller.abort('reason')` with a string reason.
+- `SseError`: Thrown by `.sse()` when the response is not `text/event-stream`, or an event exceeds `maxEventLength`.
 - `WrqError`: The base class of all the errors above.
 
 ```typescript
@@ -208,6 +213,32 @@ console.log(rawResponse.headers.get('content-type'));
 // Void the response
 await wrq.get('https://example.com/users/1').void();
 ```
+
+### Server-Sent Events
+
+`.sse(options?)` reads a `text/event-stream` response as an async iterable of `{ event, data, id }`. Unlike
+`EventSource`, a failed open rejects with the usual errors (`HttpError` with the response, `TimeoutError`), hooks and
+instance headers apply, and nothing reconnects by itself.
+
+```typescript
+const controller = new AbortController();
+const events = await api.get('/events', { controller }).sse({ lastEventId: '41' });
+
+for await (const { event, data, id } of events) {
+  if (event === 'end') break; // leaving the loop closes the connection
+  console.log(id, JSON.parse(data));
+}
+```
+
+- Resolves once the response headers have arrived; `timeout` applies to them only, so the stream may run indefinitely.
+- Sends `Accept: text/event-stream` (replacing an instance default) and `cache: 'no-store'`; `lastEventId` is sent as
+  `Last-Event-ID`.
+- Leaving the loop, `events.return()` or `events.close()` closes the connection; a pending `next()` then ends the
+  iteration. Aborting the request's `controller` makes the iteration throw an `AbortError`.
+- An error after the stream opened (a dropped connection, an event over `maxEventLength`, default 1 MiB) is thrown by the
+  iteration and does not run the error hooks: the request itself succeeded.
+- Follows the HTML standard's parsing rules (CRLF/LF/CR, comments, `id` carried over to later events, a trailing
+  unterminated event discarded). `retry:` is ignored. `parseSse(body)` is exported for bodies from elsewhere.
 
 ### Cloning an Instance
 
@@ -279,6 +310,8 @@ Creates a new instance with `options` deep merged into the current instance's co
 ### `handler.raw(): Promise<Response>`
 
 ### `handler.void(): Promise<void>`
+
+### `handler.sse(options?: SseOptions): Promise<EventStream>`
 
 These methods on the `Handler` instance process the response.
 
